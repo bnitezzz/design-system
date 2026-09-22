@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { menuById } from "@/lib/pos/catalog";
-import { clampQty } from "@/lib/pos/format";
+import { clampQty, roundMoney } from "@/lib/pos/format";
 import type {
   CartLine,
   CartSource,
@@ -46,12 +46,18 @@ type PosContextValue = {
   markDelivered: (orderId: string) => void;
   lineCount: (source: CartSource) => number;
   cartTotal: (source: CartSource) => number;
-  addDetailed: (source: CartSource, itemId: string, qty: number, note: string) => void;
+  addDetailed: (
+    source: CartSource,
+    itemId: string,
+    qty: number,
+    note: string,
+    extra?: number
+  ) => void;
 };
 
 const PosContext = createContext<PosContextValue | null>(null);
 
-function lineFromItem(itemId: string, qty: number, note: string) {
+function lineFromItem(itemId: string, qty: number, note: string, extra = 0) {
   const item = menuById.get(itemId);
   if (!item) return null;
   return {
@@ -59,7 +65,7 @@ function lineFromItem(itemId: string, qty: number, note: string) {
     itemId,
     name: item.name,
     qty,
-    price: item.price,
+    price: roundMoney(item.price + extra),
     note: note.trim().slice(0, 80),
     station: item.station,
   };
@@ -160,14 +166,16 @@ export function PosProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PosContextValue>(() => {
     const cartTotal = (source: CartSource) =>
-      carts[source].reduce((sum, line) => {
-        const item = menuById.get(line.itemId);
-        return sum + (item ? item.price * line.qty : 0);
-      }, 0);
+      roundMoney(
+        carts[source].reduce((sum, line) => {
+          const item = menuById.get(line.itemId);
+          return sum + (item ? (item.price + line.extra) * line.qty : 0);
+        }, 0)
+      );
 
     const snapshot = (source: CartSource) =>
       carts[source]
-        .map((line) => lineFromItem(line.itemId, line.qty, line.note))
+        .map((line) => lineFromItem(line.itemId, line.qty, line.note, line.extra))
         .filter((line): line is NonNullable<typeof line> => line !== null);
 
     const createOrder = (
@@ -204,12 +212,16 @@ export function PosProvider({ children }: { children: ReactNode }) {
       lineCount: (source) =>
         carts[source].reduce((sum, line) => sum + line.qty, 0),
       cartTotal,
-      addDetailed: (source, itemId, qty, note) => {
+      addDetailed: (source, itemId, qty, note, extra = 0) => {
         if (!menuById.has(itemId)) return;
         const amount = Math.min(9, Math.max(1, Math.round(qty)));
         const cleanNote = note.trim().slice(0, 80);
+        const cleanExtra = roundMoney(extra);
         setCarts((current) => {
-          const existing = current[source].find((line) => line.itemId === itemId);
+          const existing = current[source].find(
+            (line) =>
+              line.itemId === itemId && line.note === cleanNote && line.extra === cleanExtra
+          );
           if (!existing) {
             return {
               ...current,
@@ -220,6 +232,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
                   itemId,
                   qty: amount,
                   note: cleanNote,
+                  extra: cleanExtra,
                 },
               ],
             };
@@ -228,11 +241,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
             ...current,
             [source]: current[source].map((line) =>
               line.lineId === existing.lineId
-                ? {
-                    ...line,
-                    qty: clampQty(line.qty + amount),
-                    note: cleanNote || line.note,
-                  }
+                ? { ...line, qty: clampQty(line.qty + amount) }
                 : line
             ),
           };
@@ -241,7 +250,9 @@ export function PosProvider({ children }: { children: ReactNode }) {
       addItem: (source, itemId) => {
         if (!menuById.has(itemId)) return;
         setCarts((current) => {
-          const existing = current[source].find((line) => line.itemId === itemId);
+          const existing = current[source].find(
+            (line) => line.itemId === itemId && line.note === "" && line.extra === 0
+          );
           if (!existing) {
             return {
               ...current,
@@ -252,6 +263,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
                   itemId,
                   qty: 1,
                   note: "",
+                  extra: 0,
                 },
               ],
             };

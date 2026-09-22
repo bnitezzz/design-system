@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { categories, menu, quickNotes, tables } from "@/lib/pos/catalog";
-import { formatClock, formatMoney } from "@/lib/pos/format";
-import type { CategoryId, PayMethod, ServiceChannel } from "@/lib/pos/types";
+import { useEffect, useMemo, useState } from "react";
+import { menu, quickNotes, tables } from "@/lib/pos/catalog";
+import { formatClock, formatMoney, roundMoney } from "@/lib/pos/format";
+import type { CategoryId, MenuItem, PayMethod, ServiceChannel } from "@/lib/pos/types";
+import { ComboDialog } from "./combo-dialog";
+import { ProductBoard } from "./product-board";
 import { orderAmount, usePos } from "./provider";
-import { CategoryTile, Numpad, PosButton, ProductCard, StatusBadge } from "./ui";
+import { Numpad, PosButton, StatusBadge } from "./ui";
 
 const payLabels: Record<PayMethod, string> = {
   efectivo: "Efectivo",
@@ -25,6 +27,8 @@ export function CajaScreen() {
   const [chargingId, setChargingId] = useState<string | "cart" | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(menu[0]?.id ?? null);
+  const [configuring, setConfiguring] = useState<MenuItem | null>(null);
 
   const destination = channel === "mesa" ? table : channel === "llevar" ? "Mostrador" : "Entrega";
   const visible = useMemo(
@@ -36,6 +40,16 @@ export function CajaScreen() {
       }),
     [category, query]
   );
+
+  useEffect(() => {
+    if (visible.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!visible.some((item) => item.id === selectedId)) {
+      setSelectedId(visible[0].id);
+    }
+  }, [visible, selectedId]);
   const openOrders = pos.orders.filter((order) => !order.paid && order.status !== "entregado");
   const chargingOrder =
     chargingId && chargingId !== "cart"
@@ -134,24 +148,6 @@ export function CajaScreen() {
       </header>
 
       <div className="pos-view-body">
-        <div className="pos-category-rail" aria-label="Categorías">
-          <CategoryTile
-            id="todas"
-            label="Todas"
-            active={category === "todas"}
-            onClick={() => setCategory("todas")}
-          />
-          {categories.map((item) => (
-            <CategoryTile
-              key={item.id}
-              id={item.id}
-              label={item.label}
-              active={category === item.id}
-              onClick={() => setCategory(item.id)}
-            />
-          ))}
-        </div>
-
         <div className="pos-catalog">
           <div className="pos-inline" style={{ justifyContent: "space-between" }}>
             <div className="pos-segments">
@@ -174,26 +170,19 @@ export function CajaScreen() {
           </div>
 
           {pane === "ticket" ? (
-            <div className="pos-product-grid">
-              {visible.length === 0 && (
-                <p className="pos-empty">Ningún producto coincide con la búsqueda.</p>
-              )}
-              {visible.map((item) => {
-                const qty = pos.carts.caja
-                  .filter((line) => line.itemId === item.id)
-                  .reduce((sum, line) => sum + line.qty, 0);
-                return (
-                  <ProductCard
-                    key={item.id}
-                    name={item.name}
-                    price={item.price}
-                    category={item.category}
-                    qty={qty}
-                    onAdd={() => pos.addItem("caja", item.id)}
-                  />
-                );
-              })}
-            </div>
+            <ProductBoard
+              items={visible}
+              selectedId={selectedId}
+              category={category}
+              onCategory={setCategory}
+              onSelect={setSelectedId}
+              onConfigure={setConfiguring}
+              quantityOf={(id) =>
+                pos.carts.caja
+                  .filter((line) => line.itemId === id)
+                  .reduce((sum, line) => sum + line.qty, 0)
+              }
+            />
           ) : (
             <div className="pos-open-list">
               {openOrders.length === 0 && (
@@ -239,7 +228,7 @@ export function CajaScreen() {
                 <div key={line.lineId} className="pos-line">
                   <div className="pos-line-top">
                     <span>{item.name}</span>
-                    <span>{formatMoney(item.price * line.qty)}</span>
+                    <span>{formatMoney(roundMoney((item.price + line.extra) * line.qty))}</span>
                   </div>
                   <div className="pos-stepper">
                     <button
@@ -304,6 +293,18 @@ export function CajaScreen() {
           </div>
         </aside>
       </div>
+
+      {configuring && (
+        <ComboDialog
+          item={configuring}
+          onClose={() => setConfiguring(null)}
+          onAdd={(note, extra) => {
+            pos.addDetailed("caja", configuring.id, 1, note, extra);
+            setConfiguring(null);
+            setToast(`${configuring.name} entró a la cuenta.`);
+          }}
+        />
+      )}
 
       {chargingId && (chargingId === "cart" || chargingOrder) && (
         <div className="pos-sheet" role="dialog" aria-modal="true" aria-labelledby="caja-pay-title">

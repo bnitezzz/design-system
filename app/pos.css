@@ -1455,6 +1455,93 @@
   overflow: auto;
 }
 
+.pos-menu-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 6px 8px;
+}
+
+.pos-menu-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30% 1fr auto;
+  align-items: center;
+  width: 100%;
+  aspect-ratio: 3.88 / 1;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1.5px solid #c4c4c4;
+  border-radius: 34px;
+  padding: 0 4.2% 0 1.5%;
+  flex-shrink: 0;
+}
+
+.pos-menu-card-name {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -46%);
+  margin: 0;
+  background: #d4272a;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  padding: 9px 22px 11px;
+  border-radius: 14px;
+  white-space: nowrap;
+}
+
+.pos-menu-card-visual {
+  height: 68%;
+  display: grid;
+  place-items: center;
+  align-self: center;
+}
+
+.pos-menu-card-visual img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.pos-art.is-menu svg {
+  width: 108px;
+  height: auto;
+}
+
+.pos-menu-plus {
+  height: 24%;
+  aspect-ratio: 1;
+  width: auto;
+  border: 0;
+  border-radius: 50%;
+  background: #1cc844;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  justify-self: end;
+}
+
+.pos-menu-plus:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 3px;
+}
+
+.pos-menu-plus svg {
+  display: block;
+  width: 46%;
+  height: auto;
+}
+
 @media (max-width: 1320px) {
   .pos-stage {
     align-items: flex-start;

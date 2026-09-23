@@ -95,11 +95,7 @@ export function AutopagoScreen() {
               selectedId={selectedId}
               category={category}
               onCategory={setCategory}
-              onSelect={(id) => {
-                setSelectedId(id);
-                const item = visible.find((entry) => entry.id === id);
-                if (item) setConfiguring(item);
-              }}
+              onSelect={setSelectedId}
               onConfigure={setConfiguring}
               quantityOf={(id) =>
                 pos.carts.autopago

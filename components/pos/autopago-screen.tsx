@@ -1,21 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { categories, menu, quickNotes } from "@/lib/pos/catalog";
-import { formatMoney } from "@/lib/pos/format";
+import { useEffect, useMemo, useState } from "react";
+import { menu } from "@/lib/pos/catalog";
+import { formatMoney, roundMoney } from "@/lib/pos/format";
 import type { CategoryId, MenuItem, PayMethod } from "@/lib/pos/types";
+import { ComboDialog } from "./combo-dialog";
+import { ProductBoard } from "./product-board";
 import { usePos } from "./provider";
-import { ArrowButton, CategoryTile, PosButton, ProductCard } from "./ui";
+import { ArrowButton, PosButton } from "./ui";
 
-type Step = "inicio" | "menu" | "detalle" | "cuenta" | "pago" | "listo";
+type Step = "inicio" | "menu" | "cuenta" | "pago" | "listo";
 
 export function AutopagoScreen() {
   const pos = usePos();
   const [step, setStep] = useState<Step>("inicio");
   const [category, setCategory] = useState<CategoryId | "todas">("combos");
-  const [active, setActive] = useState<MenuItem | null>(null);
-  const [draftQty, setDraftQty] = useState(1);
-  const [draftNote, setDraftNote] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>("combo-almuerzo");
+  const [configuring, setConfiguring] = useState<MenuItem | null>(null);
   const [method, setMethod] = useState<PayMethod>("tarjeta");
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<{ number: number; paid: boolean } | null>(null);
@@ -25,18 +26,15 @@ export function AutopagoScreen() {
     [category]
   );
 
-  function openItem(item: MenuItem) {
-    setActive(item);
-    setDraftQty(1);
-    setDraftNote("");
-    setStep("detalle");
-  }
-
-  function addDraft() {
-    if (!active) return;
-    pos.addDetailed("autopago", active.id, draftQty, draftNote);
-    setStep("menu");
-  }
+  useEffect(() => {
+    if (visible.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!visible.some((item) => item.id === selectedId)) {
+      setSelectedId(visible[0].id);
+    }
+  }, [visible, selectedId]);
 
   function confirmPay() {
     const result = pos.payCart("autopago", method, "llevar", "Kiosco");
@@ -57,17 +55,18 @@ export function AutopagoScreen() {
             <ArrowButton
               label="Volver"
               onClick={() => {
-                if (step === "detalle") setStep("menu");
-                else if (step === "cuenta") setStep("menu");
+                if (step === "cuenta") setStep("menu");
                 else if (step === "pago") setStep("cuenta");
                 else setStep("inicio");
               }}
             />
           )}
-          <div>
-            <p className="pos-kicker">Propuesta · Autopago</p>
-            <h2 className="pos-heading-sm">Combos y menú</h2>
-          </div>
+          {step !== "menu" && (
+            <div>
+              <p className="pos-kicker">Propuesta · Autopago</p>
+              <h2 className="pos-heading-sm">Combos y menú</h2>
+            </div>
+          )}
         </div>
         <p className="pos-kicker">Para llevar</p>
       </header>
@@ -90,38 +89,24 @@ export function AutopagoScreen() {
       {step === "menu" && (
         <>
           <div className="pos-kiosk-main">
-            <div className="pos-inline" style={{ alignItems: "stretch" }}>
-              <CategoryTile
-                id="todas"
-                label="Todas"
-                active={category === "todas"}
-                onClick={() => setCategory("todas")}
-              />
-              {categories.map((item) => (
-                <CategoryTile
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  active={category === item.id}
-                  onClick={() => setCategory(item.id)}
-                />
-              ))}
-            </div>
-            <div className="pos-product-grid">
-              {visible.map((item) => (
-                <ProductCard
-                  key={item.id}
-                  name={item.name}
-                  price={item.price}
-                  category={item.category}
-                  detail={item.detail}
-                  qty={pos.carts.autopago
-                    .filter((line) => line.itemId === item.id)
-                    .reduce((sum, line) => sum + line.qty, 0)}
-                  onAdd={() => openItem(item)}
-                />
-              ))}
-            </div>
+            <ProductBoard
+              stacked
+              items={visible}
+              selectedId={selectedId}
+              category={category}
+              onCategory={setCategory}
+              onSelect={(id) => {
+                setSelectedId(id);
+                const item = visible.find((entry) => entry.id === id);
+                if (item) setConfiguring(item);
+              }}
+              onConfigure={setConfiguring}
+              quantityOf={(id) =>
+                pos.carts.autopago
+                  .filter((line) => line.itemId === id)
+                  .reduce((sum, line) => sum + line.qty, 0)
+              }
+            />
           </div>
           <footer className="pos-kiosk-bottom">
             <div>
@@ -139,41 +124,6 @@ export function AutopagoScreen() {
         </>
       )}
 
-      {step === "detalle" && active && (
-        <div className="pos-kiosk-main">
-          <p className="pos-kicker">{active.category}</p>
-          <h2 className="pos-heading">{active.name}</h2>
-          <p className="pos-muted" style={{ fontSize: 18, lineHeight: "26px" }}>
-            {active.detail}
-          </p>
-          <p className="pos-heading">{formatMoney(active.price * draftQty)}</p>
-          <div className="pos-stepper">
-            <button type="button" aria-label="Reducir cantidad" onClick={() => setDraftQty((qty) => Math.max(1, qty - 1))}>
-              −
-            </button>
-            <span>{draftQty}</span>
-            <button type="button" aria-label="Aumentar cantidad" onClick={() => setDraftQty((qty) => Math.min(9, qty + 1))}>
-              +
-            </button>
-          </div>
-          <div className="pos-filters">
-            {quickNotes.map((note) => (
-              <button
-                key={note}
-                type="button"
-                className={draftNote === note ? "pos-chip is-active" : "pos-chip"}
-                onClick={() => setDraftNote(note)}
-              >
-                {note}
-              </button>
-            ))}
-          </div>
-          <PosButton size="lg" onClick={addDraft}>
-            Agregar al pedido
-          </PosButton>
-        </div>
-      )}
-
       {step === "cuenta" && (
         <>
           <div className="pos-kiosk-main">
@@ -186,7 +136,7 @@ export function AutopagoScreen() {
                   <div>
                     <strong>{item.name}</strong>
                     <p className="pos-muted">
-                      {line.qty} × {formatMoney(item.price)}
+                      {line.qty} × {formatMoney(roundMoney(item.price + line.extra))}
                       {line.note ? ` · ${line.note}` : ""}
                     </p>
                   </div>
@@ -281,6 +231,17 @@ export function AutopagoScreen() {
             Nuevo pedido
           </PosButton>
         </div>
+      )}
+
+      {configuring && step === "menu" && (
+        <ComboDialog
+          item={configuring}
+          onClose={() => setConfiguring(null)}
+          onAdd={(note, extra) => {
+            pos.addDetailed("autopago", configuring.id, 1, note, extra);
+            setConfiguring(null);
+          }}
+        />
       )}
     </section>
   );

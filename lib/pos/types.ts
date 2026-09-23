@@ -29,6 +29,40 @@ export type CartLine = {
   itemId: string;
   qty: number;
   note: string;
+  extra: number;
+};
+
+export type ProductArtId =
+  | "burger"
+  | "fries"
+  | "drink"
+  | "taco"
+  | "bowl"
+  | "coffee"
+  | "cake"
+  | "bottle"
+  | "quesadilla";
+
+export type ModifierOption = {
+  id: string;
+  label: string;
+  extra: number;
+  extraLabel?: string;
+  defaultSelected?: boolean;
+};
+
+export type ModifierGroup = {
+  id: string;
+  mode: "multi" | "single";
+  options: ModifierOption[];
+};
+
+export type ProductSetup = {
+  art: ProductArtId;
+  ingredients?: ModifierGroup;
+  size?: ModifierGroup;
+  sauces?: ModifierGroup;
+  sides?: boolean;
 };
 
 export type OrderLine = {

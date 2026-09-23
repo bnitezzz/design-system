@@ -1,15 +1,47 @@
 import type { OrderStatus, ServiceChannel } from "./types";
 
+export function roundMoney(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
 export function formatMoney(amount: number): string {
+  const value = roundMoney(amount);
+  const hasFraction = Math.round(value * 100) % 100 !== 0;
   try {
     return new Intl.NumberFormat("es-MX", {
       style: "currency",
       currency: "MXN",
-      maximumFractionDigits: 0,
-    }).format(amount);
+      minimumFractionDigits: hasFraction ? 2 : 0,
+      maximumFractionDigits: 2,
+    }).format(value);
   } catch {
-    return `$${Math.round(amount)}`;
+    return `$${value}`;
   }
+}
+
+export function formatExtra(amount: number, label?: string): string {
+  if (label) return label;
+  const value = roundMoney(amount);
+  const [whole, fraction = "0"] = value.toFixed(1).split(".");
+  if (fraction === "0") return `+${Number(whole)}$`;
+  return `+${whole},${fraction}$`;
+}
+
+export function formatOrderNo(number: number): string {
+  return String(Math.max(0, Math.round(number))).padStart(5, "0");
+}
+
+export function formatMinutes(from: number, now: number | null): string {
+  if (now === null || from <= 0) return "—";
+  const minutes = Math.max(0, Math.floor((now - from) / 60000));
+  return `${String(minutes).padStart(2, "0")} min`;
+}
+
+export function courseLabel(status: OrderStatus): string {
+  if (status === "listo") return "Listo";
+  if (status === "en-camino") return "En camino";
+  if (status === "entregado") return "Entregado";
+  return "En curso";
 }
 
 export function formatClock(now: number | null): string {

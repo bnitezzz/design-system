@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { categoryMedia, stationLabel } from "@/lib/pos/catalog";
+import { stationLabel } from "@/lib/pos/catalog";
+import type { ProductArtId } from "@/lib/pos/types";
+import { ProductArt } from "./product-art";
 import {
   channelLabel,
   formatElapsed,
@@ -11,6 +13,13 @@ import {
 } from "@/lib/pos/format";
 import type { CategoryId, OrderStatus, ServiceOrder } from "@/lib/pos/types";
 import { cn } from "@/lib/utils";
+
+const categoryArt: Record<CategoryId, ProductArtId> = {
+  combos: "burger",
+  comida: "taco",
+  bebidas: "drink",
+  postres: "cake",
+};
 
 const categoryMark: Record<CategoryId | "todas", string> = {
   todas: "Todo",
@@ -127,12 +136,9 @@ export function ProductCard({
 }) {
   return (
     <button type="button" className="pos-product" onClick={onAdd}>
-      <span className="pos-product-media" style={{ background: categoryMedia[category] }}>
-        {name.slice(0, 1)}
-      </span>
+      <ProductArt id={categoryArt[category]} className="is-card" />
       {qty > 0 && <span className="pos-product-qty">{qty}</span>}
       <span className="pos-product-body">
-        <span className="pos-kicker">{category}</span>
         <span className="pos-product-name">{name}</span>
         {detail && <span className="pos-product-meta">{detail}</span>}
         <span className="pos-product-price">{formatMoney(price)}</span>

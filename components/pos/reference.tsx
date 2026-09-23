@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { menu } from "@/lib/pos/catalog";
 import { posTokens } from "@/lib/pos/tokens";
 import type { ServiceOrder } from "@/lib/pos/types";
+import { ComboDialog } from "./combo-dialog";
 import { CategoryTile, Numpad, PosButton, ProductCard, SpecCard, StatusBadge, TicketCard } from "./ui";
 
 const sampleOrder: ServiceOrder = {
@@ -54,9 +56,9 @@ export function Foundations() {
       <h2 className="pos-heading">Fundamentos</h2>
       <p className="pos-muted" style={{ maxWidth: 720, marginTop: 8 }}>
         Sistema de operación para registrar pedidos en caja, mandar la comanda a cocina,
-        cobrar en autopago y entregar con runners. Las medidas salen del archivo de Figma:
-        Inter 600, interlineado 34, radio 15, sombra de tarjeta y los marcos View, Combos,
-        Contador, Group 14 y Frame 13.
+        cobrar en autopago y entregar con runners. La carta se lee en un lienzo blanco:
+        título grande, pastilla roja y lista con filete. Armar un producto abre el popup
+        del combo, sin sombra.
       </p>
 
       <h3 className="pos-heading-sm" style={{ marginTop: 28 }}>
@@ -66,9 +68,9 @@ export function Foundations() {
         <SpecCard label="View" value="1280 × 832" note="Caja, comanda y runners." />
         <SpecCard label="Combos" value="850 × 1280" note="Kiosco de autopago." />
         <SpecCard label="Contador" value="203.9 × 610.1" note="Cuenta activa en caja." />
-        <SpecCard label="Producto" value="127 × 256" note="Groups 4, 8, 9 y 10." />
+        <SpecCard label="Producto" value="Lista" note="Nombre y precio, filete negro." />
         <SpecCard label="Categoría" value="60 × 104" note="Group 14." />
-        <SpecCard label="Comanda" value="423 × 461" note="Frame 13, radio 15." />
+        <SpecCard label="Popup" value="Combo" note="Pastilla roja, checks y Agregar." />
         <SpecCard label="Columna" value="814 × 692" note="Frame 52, gap 19." />
         <SpecCard label="Flecha" value="44 / 5 px" note="Regreso, trazo negro." />
       </div>
@@ -126,6 +128,8 @@ export function Foundations() {
 export function ComponentGallery() {
   const [cash, setCash] = useState("200");
   const [category, setCategory] = useState<"combos" | "comida">("combos");
+  const [comboOpen, setComboOpen] = useState(false);
+  const sampleCombo = menu.find((item) => item.id === "combo-almuerzo") ?? menu[0];
 
   return (
     <div className="pos-doc">
@@ -179,15 +183,22 @@ export function ComponentGallery() {
             category="combos"
             detail="Hamburguesa, papas y bebida."
             qty={1}
-            onAdd={() => undefined}
+            onAdd={() => setComboOpen(true)}
           />
-          <span>Producto · 127 × 256</span>
+          <span>Toca el producto para armar el combo</span>
         </div>
         <div className="pos-measure">
           <TicketCard order={sampleOrder} now={null} actionLabel="Marcar listo" onAction={() => undefined} />
-          <span>Frame 13 · 423 × 461 · radio 15</span>
+          <span>Comanda en lectura, filete negro</span>
         </div>
       </div>
+      {comboOpen && (
+        <ComboDialog
+          item={sampleCombo}
+          onClose={() => setComboOpen(false)}
+          onAdd={() => setComboOpen(false)}
+        />
+      )}
     </div>
   );
 }
